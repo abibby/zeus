@@ -31,9 +31,9 @@ type User struct {
 }
 
 func main() {
-	z, _ := zeus.Open(
-		&User{},
-	)
+	z, _ := zeus.Open(map[string]interface{}{
+		"user": &User{},
+	})
 	http.HandleFunc("/", greet)
 	http.HandleFunc("/api", z.Handle())
 	http.ListenAndServe(":8080", nil)
