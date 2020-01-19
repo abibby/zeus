@@ -2,10 +2,12 @@ package zeus
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"reflect"
 
+	"github.com/asdine/storm/v3"
 	"github.com/pkg/errors"
 )
 
@@ -19,6 +21,18 @@ type InsertQuery struct {
 	Value json.RawMessage `json:"value"`
 }
 type SelectQuery struct {
+	Where *Where `json:"where"`
+}
+
+type Where struct {
+	Key      string      `json:"key"`
+	Operator string      `json:"operator"`
+	Value    interface{} `json:"value"`
+}
+
+type Response struct {
+	Error string      `json:"error,omitempty"`
+	Data  interface{} `json:"data,omitempty"`
 }
 
 func (z *Zeus) Handle() func(http.ResponseWriter, *http.Request) {
@@ -26,10 +40,14 @@ func (z *Zeus) Handle() func(http.ResponseWriter, *http.Request) {
 		defer r.Body.Close()
 
 		queries := []*Query{}
-
-		err := json.NewDecoder(r.Body).Decode(&queries)
+		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Print(err)
+			showError(w, err)
+			return
+		}
+		err = json.Unmarshal(b, &queries)
+		if err != nil {
+			showError(w, err)
 			return
 		}
 
@@ -38,20 +56,37 @@ func (z *Zeus) Handle() func(http.ResponseWriter, *http.Request) {
 				if query.Insert != nil {
 					err = z.insert(w, model, query.Insert)
 					if err != nil {
-						log.Print(err)
+						showError(w, err)
 						return
 					}
 				}
 				if query.Select != nil {
 					err = z.selectMoldes(w, model, query.Select)
 					if err != nil {
-						log.Print(err)
+						showError(w, err)
 						return
 					}
 				}
 			}
 		}
 	}
+}
+
+func showError(w http.ResponseWriter, err error) {
+	log.Printf("%+v", err)
+	err = json.NewEncoder(w).Encode(&Response{
+		Error: err.Error(),
+	})
+	if err != nil {
+		log.Printf("%+v", err)
+	}
+}
+
+func showResponse(w http.ResponseWriter, data interface{}) error {
+	err := json.NewEncoder(w).Encode(&Response{
+		Data: data,
+	})
+	return errors.Wrap(err, "failed to encode response")
 }
 
 // newSlice returns a pointer to a slice of the given type
@@ -75,16 +110,24 @@ func (z *Zeus) insert(w http.ResponseWriter, model interface{}, insert *InsertQu
 	if err != nil {
 		return errors.Wrap(err, "could not save the given model")
 	}
-	err = json.NewEncoder(w).Encode(s)
-	return errors.Wrap(err, "failed to print inserted model")
+	return showResponse(w, s)
 }
 
 func (z *Zeus) selectMoldes(w http.ResponseWriter, model interface{}, selectQuery *SelectQuery) error {
 	s := newSlice(model)
-	err := z.db.All(s)
-	if err != nil {
-		return errors.Wrap(err, "unable to load selected models")
+	if selectQuery.Where != nil {
+		log.Print(selectQuery.Where.Key, selectQuery.Where.Value)
+		err := z.db.Find(selectQuery.Where.Key, selectQuery.Where.Value, s)
+		if err == storm.ErrNotFound {
+			s = []struct{}{}
+		} else if err != nil {
+			return errors.Wrap(err, "unable to load selected models")
+		}
+	} else {
+		err := z.db.All(s)
+		if err != nil {
+			return errors.Wrap(err, "unable to load selected models")
+		}
 	}
-	err = json.NewEncoder(w).Encode(s)
-	return errors.Wrap(err, "unable to write selected models")
+	return showResponse(w, s)
 }
