@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/zwzn/zeus"
@@ -36,5 +37,5 @@ func main() {
 	})
 	http.HandleFunc("/", greet)
 	http.HandleFunc("/api", z.Handle())
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

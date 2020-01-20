@@ -6,6 +6,8 @@ require (
 	github.com/asdine/storm v2.1.2+incompatible
 	github.com/asdine/storm/v3 v3.1.0
 	github.com/davecgh/go-spew v1.1.1
+	github.com/jinzhu/gorm v1.9.12
+	github.com/mattn/go-sqlite3 v2.0.2+incompatible
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.8.1

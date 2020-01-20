@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/asdine/storm/v3"
 	"github.com/pkg/errors"
 )
 
@@ -106,7 +105,7 @@ func (z *Zeus) insert(w http.ResponseWriter, model interface{}, insert *InsertQu
 	if err != nil {
 		return errors.Wrap(err, "failed to load model to insert")
 	}
-	err = z.db.Save(s)
+	err = z.db.Create(s).Error
 	if err != nil {
 		return errors.Wrap(err, "could not save the given model")
 	}
@@ -115,19 +114,9 @@ func (z *Zeus) insert(w http.ResponseWriter, model interface{}, insert *InsertQu
 
 func (z *Zeus) selectMoldes(w http.ResponseWriter, model interface{}, selectQuery *SelectQuery) error {
 	s := newSlice(model)
-	if selectQuery.Where != nil {
-		log.Print(selectQuery.Where.Key, selectQuery.Where.Value)
-		err := z.db.Find(selectQuery.Where.Key, selectQuery.Where.Value, s)
-		if err == storm.ErrNotFound {
-			s = []struct{}{}
-		} else if err != nil {
-			return errors.Wrap(err, "unable to load selected models")
-		}
-	} else {
-		err := z.db.All(s)
-		if err != nil {
-			return errors.Wrap(err, "unable to load selected models")
-		}
+	err := z.db.Find(s).Error
+	if err != nil {
+		return errors.Wrap(err, "unable to load selected models")
 	}
 	return showResponse(w, s)
 }

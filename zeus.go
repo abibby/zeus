@@ -1,20 +1,26 @@
 package zeus
 
 import (
-	"github.com/asdine/storm/v3"
+	"github.com/jinzhu/gorm"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )
 
 type Zeus struct {
-	db     *storm.DB
+	db     *gorm.DB
 	tables map[string]interface{}
 }
 
 func Open(tables map[string]interface{}) (*Zeus, error) {
-	db, err := storm.Open("./test.db")
+	db, err := gorm.Open("sqlite3", "./foo.db")
 	if err != nil {
 		return nil, errors.Wrap(err, "error opening db")
 	}
+
+	for _, table := range tables {
+		db.AutoMigrate(table)
+	}
+
 	return &Zeus{
 		db:     db,
 		tables: tables,
